@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sess
 from sqlalchemy import select
 
 from schemas import URLCheckRequest, AnalysisResult, SSLInfo
-from models import TrustedResource
+from models import Base, TrustedResource
 from services.ssl_checker import get_ssl_info
 from services.url_analyzer import analyze_url_risk
 from services.image_analyzer import compute_phash_from_url
@@ -44,6 +44,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Автоматичне створення таблиць при запуску сервера
+@app.on_event("startup")
+async def init_tables():
+    async with engine.begin() as conn:
+        # Ця команда створить таблиці, якщо їх немає, і нічого не зробить, якщо вони вже є
+        await conn.run_sync(Base.metadata.create_all)
+        print("Таблиці бази даних успішно перевірені/створені!")
 
 async def get_db():
     async with AsyncSessionLocal() as session:
