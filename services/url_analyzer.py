@@ -86,6 +86,10 @@ async def analyze_url_risk(url: str, db: AsyncSession) -> dict:
             risk_score += total_bad_votes * 10
             # Передаємо код та кількість голосів
             details.append(f"DETAIL_VT_VOTES:{total_bad_votes}")
+        else:
+            # Додаємо повідомлення про відсутність скарг
+            details.append("DETAIL_VT_CLEAN")
+        
         
         if vt_data["creation_date"]:
             # Конвертація Unix Timestamp у звичайну дату
