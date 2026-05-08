@@ -12,12 +12,14 @@ from services.image_analyzer import compute_phash_from_url
 from services.phash_analyzer import analyze_logo_phash
 from services.dom_analyzer import analyze_dom_content
 
-# Отримання рядка підключення
+# Отримуємо рядок підключення
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://user:pass@localhost/dbname")
 
-# Виправлення префікса для asyncpg, якщо необхідно
+# Виправляємо префікс незалежно від того, postgres це чи postgresql
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
+elif DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
 
 # Створення асинхронного двигуна
 engine = create_async_engine(DATABASE_URL, echo=True)
