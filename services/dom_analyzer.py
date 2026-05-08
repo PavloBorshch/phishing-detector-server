@@ -20,7 +20,7 @@ def analyze_dom_content(url: str, dom_content: str, trusted_sites: list) -> dict
         
         # Перевірка незахищеного протоколу
         if action.startswith('http://'):
-            score += 30
+            score += 50
             details.append("DETAIL_INSECURE_FORM")
         
         # Перевірка відправки даних на чужий домен
@@ -31,7 +31,7 @@ def analyze_dom_content(url: str, dom_content: str, trusted_sites: list) -> dict
         # Пошук прихованих або явних полів для паролів
         pass_inputs = form.find_all('input', type='password')
         if pass_inputs:
-            score += 50
+            score += 20
             details.append("DETAIL_PASSWORD_INPUT")
 
     # Виявлення клонів
