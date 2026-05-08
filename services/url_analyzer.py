@@ -79,7 +79,6 @@ async def analyze_url_risk(url: str, db: AsyncSession) -> dict:
                 "details": [f"DETAIL_TYPOSQUATTING:{site.organization_name} ({site.domain})"]
             }
 
-    print(f"DEBUG: vt_data for {url}: {vt_data}")
     # Обрахунок даних з VirusTotal 
     if vt_data:
         total_bad_votes = vt_data["malicious_votes"] + vt_data["suspicious_votes"]
