@@ -1,6 +1,7 @@
+import os
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy import select
 
 from schemas import URLCheckRequest, AnalysisResult, SSLInfo
@@ -10,7 +11,23 @@ from services.url_analyzer import analyze_url_risk
 from services.image_analyzer import compute_phash_from_url
 from services.phash_analyzer import analyze_logo_phash
 from services.dom_analyzer import analyze_dom_content
-from database import get_db
+
+# Отримання рядка підключення
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://user:pass@localhost/dbname")
+
+# Виправлення префікса для asyncpg, якщо необхідно
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
+
+# Створення асинхронного двигуна
+engine = create_async_engine(DATABASE_URL, echo=True)
+
+# Фабрика сесій
+AsyncSessionLocal = async_sessionmaker(
+    bind=engine,
+    class_=AsyncSession,
+    expire_on_commit=False
+)
 
 app = FastAPI()
 
@@ -22,6 +39,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+async def get_db():
+    async with AsyncSessionLocal() as session:
+        yield session
 
 @app.post("/check-url", response_model=AnalysisResult)
 async def check_url_endpoint(request: URLCheckRequest, db: AsyncSession = Depends(get_db)):
