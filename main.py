@@ -11,6 +11,7 @@ from services.url_analyzer import analyze_url_risk
 from services.image_analyzer import compute_phash_from_url
 from services.phash_analyzer import analyze_logo_phash
 from services.dom_analyzer import analyze_dom_content
+from contextlib import asynccontextmanager
 
 # 1. Налаштування бази даних
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://user:pass@localhost/dbname")
@@ -26,7 +27,14 @@ if "sslmode=" in DATABASE_URL:
     DATABASE_URL = DATABASE_URL.replace("sslmode=", "ssl=")
 
 # Створення асинхронного двигуна
-engine = create_async_engine(DATABASE_URL, echo=True)
+engine = create_async_engine(
+    DATABASE_URL,
+    echo=True,
+    pool_pre_ping=True,      
+    pool_recycle=300,        
+    pool_size=5,             
+    max_overflow=10
+)
 
 # Фабрика сесій
 AsyncSessionLocal = async_sessionmaker(
@@ -35,7 +43,17 @@ AsyncSessionLocal = async_sessionmaker(
     expire_on_commit=False
 )
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Дії при старті сервера: створюємо таблиці
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield
+    # Дії при вимкненні сервера: закриваємо пул з'єднань
+    await engine.dispose()
+
+app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -45,17 +63,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Автоматичне створення таблиць при запуску сервера
-@app.on_event("startup")
-async def init_tables():
-    async with engine.begin() as conn:
-        # Ця команда створить таблиці, якщо їх немає, і нічого не зробить, якщо вони вже є
-        await conn.run_sync(Base.metadata.create_all)
-        print("Таблиці бази даних успішно перевірені/створені!")
 
 async def get_db():
     async with AsyncSessionLocal() as session:
-        yield session
+        try:
+            yield session
+        finally:
+            await session.close()
 
 @app.post("/check-url", response_model=AnalysisResult)
 async def check_url_endpoint(request: URLCheckRequest, db: AsyncSession = Depends(get_db)):
